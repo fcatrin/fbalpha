@@ -6,3 +6,5 @@
 *.exp
 *.manifest
 /nul
+/libs/
+/obj/
