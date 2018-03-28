@@ -47,6 +47,8 @@ static retro_input_poll_t poll_cb;
 static retro_input_state_t input_cb;
 static retro_audio_sample_batch_t audio_batch_cb;
 
+char g_samples_dir[1024];
+
 #define BPRINTF_BUFFER_SIZE 512
 char bprintf_buf[BPRINTF_BUFFER_SIZE];
 static INT32 __cdecl libretro_bprintf(INT32 nStatus, TCHAR* szFormat, ...)
@@ -186,6 +188,10 @@ static const struct retro_variable var_fba_fm_interpolation = { "fba-fm-interpol
 
 // Neo Geo core options
 static const struct retro_variable var_fba_neogeo_mode = { "fba-neogeo-mode", "Force Neo Geo mode (if available); MVS|AES|UNIBIOS|DIPSWITCH" };
+
+// RetroX core options
+
+static const struct retro_variable var_fba_samples_path = { "fba-samples", "Samples path; default|retrox" };
 
 void retro_set_environment(retro_environment_t cb)
 {
@@ -708,6 +714,7 @@ static void set_environment()
 	vars_systems.push_back(&var_fba_samplerate);
 	vars_systems.push_back(&var_fba_sample_interpolation);
 	vars_systems.push_back(&var_fba_fm_interpolation);
+	vars_systems.push_back(&var_fba_samples_path);
 
 	if (pgi_diag)
 	{
@@ -1384,6 +1391,23 @@ static void check_variables(void)
 	   else
 	      nFMInterpolation = 3;
 	}
+
+   // prepare the samples directory before the machine is initialized
+   strcat(g_samples_dir, "");
+   var.key = "fba-samples";
+   if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var))
+   {
+	   if (strcmp(var.value, "retrox") == 0) {
+		   const char *samples_dir = NULL;
+
+		   if (environ_cb(RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY, &samples_dir) && samples_dir) {
+			   snprintf(g_samples_dir, sizeof(g_samples_dir), "%s/samples", samples_dir);
+		   }
+	   }
+   }
+
+   if (log_cb)
+	   log_cb(RETRO_LOG_INFO, "[FBA] Samples path: %s\n", g_samples_dir);
 }
 
 void retro_run()
@@ -1657,7 +1681,11 @@ static bool fba_init(unsigned driver, const char *game_zip_name)
    // Initialize Hiscore path
    snprintf (szAppHiscorePath, sizeof(szAppHiscorePath), "%s%cfba%c", g_system_dir, slash, slash);
    // Initialize Samples path
-   snprintf (szAppSamplesPath, sizeof(szAppSamplesPath), "%s%cfba%csamples%c", g_system_dir, slash, slash, slash);
+   if (strlen(g_samples_dir)>0) {
+	   snprintf (szAppSamplesPath, sizeof(szAppSamplesPath), "%s%c", g_samples_dir, slash);
+   } else {
+	   snprintf (szAppSamplesPath, sizeof(szAppSamplesPath), "%s%cfba%csamples%c", g_system_dir, slash, slash, slash);
+   }
 
 // Neo cd stuff probably needs to go there
 //	if ((BurnDrvGetHardwareCode() & HARDWARE_PUBLIC_MASK) == HARDWARE_SNK_NEOCD) {
